@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { createBooking, getAvailableSlots } from '../lib/actions';
 import { SERVICES } from '../lib/bookings';
 
-export default function Home() {
+export default function Page() {
   const [selectedService, setSelectedService] = useState("");
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSlot, setSelectedSlot] = useState("");
