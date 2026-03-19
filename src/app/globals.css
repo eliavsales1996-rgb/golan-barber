@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+@source "../../src";
+
+@theme {
+  --color-primary: #c0a080;
+  --color-primary-hover: #d4b090;
+  --color-primary-light: #e2c9a1;
+  --color-primary-dark: #a68b6d;
+  --color-accent: #8e735b;
+  
+  --font-serif: "Playfair Display", serif;
+  --font-sans: "Assistant", sans-serif;
+  
+  --background-image-gold-gradient: linear-gradient(135deg, #e2c9a1 0%, #c0a080 50%, #8e735b 100%);
+  
+  --shadow-gold: 0 0 40px rgba(192, 160, 128, 0.15);
+  --shadow-gold-hover: 0 10px 30px rgba(192, 160, 128, 0.4);
+}
+
+.perspective-2000 {
+    perspective: 2000px;
+  }
+  .rotate-y-12 {
+    transform: rotateY(12deg);
+  }
+  .rotate-x-6 {
+    transform: rotateX(6deg);
+  }
+  .rotate-y-0 {
+    transform: rotateY(0deg);
+  }
+  .rotate-x-0 {
+    transform: rotateX(0deg);
+  }
+  .shadow-gold-intense {
+    box-shadow: 0 0 50px rgba(212, 175, 55, 0.4);
+  }
+  .ease-out-expo {
+    transition-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+@layer base {
+  body {
+    background-color: #0a0a0a;
+    color: white;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    letter-spacing: -0.025em;
+  }
+}
+
+@layer components {
+  .premium-card {
+    @apply relative p-8 rounded-3xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-xl transition-all duration-500 hover:bg-white/[0.06] hover:border-primary/40 hover:-translate-y-1;
+  }
+  
+  .premium-btn-primary {
+    @apply relative overflow-hidden px-8 py-4 rounded-2xl bg-gold-gradient text-black font-bold uppercase tracking-wider text-sm transition-all duration-500 hover:scale-[1.02] hover:shadow-gold-hover active:scale-95;
+  }
+  
+  .premium-btn-outline {
+    @apply px-8 py-4 rounded-2xl border-2 border-primary/30 text-primary font-bold uppercase tracking-wider text-sm transition-all duration-500 hover:bg-primary/10 hover:border-primary active:scale-95;
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    animation: reveal-anim 1s cubic-bezier(0.23,1,0.32,1) forwards;
+  }
+}
+
+@keyframes reveal-anim {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gold-gradient-text {
+  @apply bg-gold-gradient bg-clip-text text-transparent;
+}
