@@ -8,7 +8,6 @@ export default function BottomNav() {
 
   const navItems = [
     { name: 'בית', path: '/', icon: '🏠' },
-    { name: 'הזמנה', path: '/book', icon: '📅' },
   ];
 
   return (
