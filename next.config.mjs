@@ -1,7 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  allowedDevOrigins: ['192.168.1.120'],
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   serverExternalPackages: ['@prisma/client'],
 };
 
