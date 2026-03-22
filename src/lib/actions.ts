@@ -3,6 +3,63 @@
 import { prisma } from "./prisma";
 import { revalidatePath } from "next/cache";
 
+export async function getDaysOff() {
+  const daysOff = await prisma.dayOff.findMany({ orderBy: { date: "asc" } });
+  return daysOff.map((d) => ({
+    id: d.id,
+    date: d.date.toISOString().split("T")[0],
+    reason: d.reason ?? null,
+  }));
+}
+
+export async function addDayOff(startDateStr: string, endDateStr: string, reason?: string) {
+  try {
+    // Force UTC midnight to avoid timezone shifts (e.g. "2026-03-25" -> 2026-03-25T00:00:00.000Z)
+    const start = new Date(startDateStr + "T00:00:00.000Z");
+    const end = new Date(endDateStr + "T00:00:00.000Z");
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) {
+      return { success: false, error: "טווח תאריכים לא תקין" };
+    }
+
+    const dates: Date[] = [];
+    const current = new Date(start);
+    while (current <= end) {
+      dates.push(new Date(current));
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+
+    // upsert each day: updates reason if date already blocked, creates if not
+    await Promise.all(
+      dates.map((date) =>
+        prisma.dayOff.upsert({
+          where: { date },
+          update: { reason: reason || null },
+          create: { date, reason: reason || null },
+        })
+      )
+    );
+
+    revalidatePath("/admin");
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("[addDayOff] error:", error);
+    return { success: false, error: "שגיאה בחסימת הימים" };
+  }
+}
+
+export async function deleteDayOff(id: string) {
+  try {
+    await prisma.dayOff.delete({ where: { id } });
+    revalidatePath("/admin");
+    revalidatePath("/");
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
+}
+
 export async function createBooking(data: {
   customerName: string;
   customerPhone: string;
@@ -10,6 +67,13 @@ export async function createBooking(data: {
   timeSlot: string;
 }) {
   try {
+    const dayOff = await prisma.dayOff.findFirst({
+      where: { date: new Date(data.date) },
+    });
+    if (dayOff) {
+      return { success: false, error: "הספר לא עובד ביום זה" };
+    }
+
     const booking = await prisma.booking.create({
       data: {
         customerName: data.customerName,

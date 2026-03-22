@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect } from 'react';
-import { createBooking, getAvailableSlots } from '../lib/actions';
+import { createBooking, getAvailableSlots, getDaysOff } from '../lib/actions';
 import { SERVICES } from '../lib/bookings';
 
 export default function Page() {
@@ -14,6 +14,13 @@ export default function Page() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [slots, setSlots] = useState<{time: string, available: boolean}[]>([]);
   const [loading, setLoading] = useState(false);
+  const [blockedDates, setBlockedDates] = useState<Map<string, string | null>>(new Map());
+
+  useEffect(() => {
+    getDaysOff().then((days) => {
+      setBlockedDates(new Map(days.map((d) => [d.date, d.reason])));
+    });
+  }, []);
 
   useEffect(() => {
     async function fetchSlots() {
@@ -33,15 +40,22 @@ export default function Page() {
     e.preventDefault();
     if (!selectedSlot || !name || !phone || !selectedService) return;
     
+    if (blockedDates.has(selectedDate)) {
+      alert(blockedDates.get(selectedDate) || "הספר לא עובד ביום זה");
+      return;
+    }
+
     const result = await createBooking({
       date: selectedDate,
       timeSlot: selectedSlot,
       customerName: name,
       customerPhone: phone,
     });
-    
+
     if (result.success) {
       setIsSuccess(true);
+    } else if (result.error === "הספר לא עובד ביום זה") {
+      alert("הספר לא עובד ביום זה");
     } else {
       alert("שגיאה בקביעת התור. ייתכן והסלוט כבר נתפס.");
     }
@@ -123,17 +137,31 @@ export default function Page() {
                   {dates.map((date, i) => {
                     const dateStr = date.toISOString().split('T')[0];
                     const isSelected = selectedDate === dateStr;
+                    const isBlocked = blockedDates.has(dateStr);
+                    const blockReason = blockedDates.get(dateStr) || "הספר לא עובד ביום זה";
                     return (
                       <button
                         key={i}
                         type="button"
-                        onClick={() => { setSelectedDate(dateStr); setSelectedSlot(""); }}
+                        onClick={() => {
+                          if (isBlocked) {
+                            alert(blockReason);
+                            return;
+                          }
+                          setSelectedDate(dateStr);
+                          setSelectedSlot("");
+                        }}
                         className={`flex-shrink-0 w-16 h-24 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all ${
-                          isSelected ? 'bg-gold-gradient text-black scale-110 shadow-gold' : 'bg-white/[0.03] border border-white/5 text-white/40'
+                          isBlocked
+                            ? 'bg-white/[0.02] border border-white/5 text-white/20 opacity-40 line-through'
+                            : isSelected
+                              ? 'bg-gold-gradient text-black scale-110 shadow-gold'
+                              : 'bg-white/[0.03] border border-white/5 text-white/40'
                         }`}
                       >
                         <span className="text-[9px] font-black uppercase">{date.toLocaleDateString('he-IL', { weekday: 'short' })}</span>
                         <span className="text-xl font-bold tracking-tighter">{date.getDate()}</span>
+                        {isBlocked && <span className="text-[8px] text-red-400/60 font-black">סגור</span>}
                       </button>
                     );
                   })}

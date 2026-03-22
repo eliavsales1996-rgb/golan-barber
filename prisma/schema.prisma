@@ -21,3 +21,10 @@ model Booking {
   timeSlot      String
   createdAt     DateTime @default(now())
 }
+
+model DayOff {
+  id        String   @id @default(cuid())
+  date      DateTime @unique
+  reason    String?
+  createdAt DateTime @default(now())
+}
