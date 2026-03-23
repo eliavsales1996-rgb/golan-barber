@@ -36,3 +36,11 @@ model StoreSettings {
   isActive  Boolean  @default(false)
   updatedAt DateTime @updatedAt
 }
+
+model Waitlist {
+  id            String   @id @default(cuid())
+  customerName  String
+  phoneNumber   String
+  requestedDate String
+  createdAt     DateTime @default(now())
+}

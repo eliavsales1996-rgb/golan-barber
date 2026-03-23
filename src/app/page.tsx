@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect } from 'react';
-import { createBooking, getAvailableSlots, getDaysOff, getStoreSettings } from '../lib/actions';
+import { createBooking, getAvailableSlots, getDaysOff, getStoreSettings, addToWaitlist } from '../lib/actions';
 import { SERVICES } from '../lib/bookings';
 
 export default function Page() {
@@ -16,6 +16,10 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [blockedDates, setBlockedDates] = useState<Map<string, string | null>>(new Map());
   const [announcement, setAnnouncement] = useState<{ message: string; isActive: boolean } | null>(null);
+  const [waitlistName, setWaitlistName] = useState("");
+  const [waitlistPhone, setWaitlistPhone] = useState("");
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
+  const [waitlistDone, setWaitlistDone] = useState(false);
 
   useEffect(() => {
     getStoreSettings().then((s) => {
@@ -28,6 +32,10 @@ export default function Page() {
       setBlockedDates(new Map(days.map((d) => [d.date, d.reason])));
     });
   }, []);
+
+  useEffect(() => {
+    setWaitlistDone(false);
+  }, [selectedDate]);
 
   useEffect(() => {
     async function fetchSlots() {
@@ -216,10 +224,10 @@ export default function Page() {
                         disabled={!slot.available}
                         onClick={() => setSelectedSlot(slot.time)}
                         className={`py-4 rounded-xl font-bold text-sm transition-all ${
-                          selectedSlot === slot.time 
-                            ? 'bg-gold-gradient text-black shadow-gold scale-105' 
-                            : slot.available 
-                              ? 'bg-white/[0.03] border border-white/5 text-white/60 hover:border-primary/40' 
+                          selectedSlot === slot.time
+                            ? 'bg-gold-gradient text-black shadow-gold scale-105'
+                            : slot.available
+                              ? 'bg-white/[0.03] border border-white/5 text-white/60 hover:border-primary/40'
                               : 'opacity-10 bg-white/5 line-through'
                         }`}
                       >
@@ -228,6 +236,52 @@ export default function Page() {
                     ))
                   )}
                </div>
+
+               {/* Waitlist — shown when day is blocked OR all slots are taken */}
+               {!loading && (blockedDates.has(selectedDate) || (slots.length > 0 && slots.every(s => !s.available))) && (
+                 <div className="mt-8 p-6 rounded-[24px] bg-white/[0.03] border border-white/10 text-right">
+                   {waitlistDone ? (
+                     <div className="text-center py-2">
+                       <p className="text-green-400 font-bold text-base mb-1">✓ נרשמת לרשימת המתנה!</p>
+                       <p className="text-white/30 text-sm">נודיע לך כשיפנה מקום ב־{selectedDate}</p>
+                     </div>
+                   ) : (
+                     <>
+                       <p className="text-[10px] uppercase tracking-[0.25em] font-black text-primary/60 mb-1">היום מלא או חסום</p>
+                       <p className="text-white/50 text-sm mb-5">רוצה שנודיע לך אם יפנה מקום?</p>
+                       <div className="space-y-3 mb-4">
+                         <input
+                           type="text"
+                           placeholder="שם מלא"
+                           value={waitlistName}
+                           onChange={(e) => setWaitlistName(e.target.value)}
+                           className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl py-3 px-5 text-white outline-none focus:border-primary/50 text-right placeholder:text-white/20 text-sm"
+                         />
+                         <input
+                           type="tel"
+                           placeholder="מספר טלפון"
+                           value={waitlistPhone}
+                           onChange={(e) => setWaitlistPhone(e.target.value)}
+                           className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl py-3 px-5 text-white outline-none focus:border-primary/50 text-right placeholder:text-white/20 text-sm"
+                         />
+                       </div>
+                       <button
+                         type="button"
+                         disabled={waitlistLoading || !waitlistName || !waitlistPhone}
+                         onClick={async () => {
+                           setWaitlistLoading(true);
+                           await addToWaitlist(waitlistName, waitlistPhone, selectedDate);
+                           setWaitlistLoading(false);
+                           setWaitlistDone(true);
+                         }}
+                         className="w-full h-12 rounded-2xl font-bold text-sm bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-all disabled:opacity-30"
+                       >
+                         {waitlistLoading ? "שומר..." : "הכנס אותי לרשימת המתנה"}
+                       </button>
+                     </>
+                   )}
+                 </div>
+               )}
             </div>
 
             {/* Step 3: Identity */}

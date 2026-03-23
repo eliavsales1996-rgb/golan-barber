@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getBookingsForDate, getAvailableSlots, getDaysOff, addDayOff, deleteDayOff, approveBooking, rejectBooking, getStoreSettings, saveStoreSettings } from "@/lib/actions";
+import { getBookingsForDate, getAvailableSlots, getDaysOff, addDayOff, deleteDayOff, approveBooking, rejectBooking, cancelBooking, getStoreSettings, saveStoreSettings, getWaitlist, removeFromWaitlist } from "@/lib/actions";
 
 export default function AdminPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
@@ -16,6 +16,8 @@ export default function AdminPage() {
   const [announcementMessage, setAnnouncementMessage] = useState("");
   const [announcementActive, setAnnouncementActive] = useState(false);
   const [announcementLoading, setAnnouncementLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"bookings" | "waitlist">("bookings");
+  const [waitlist, setWaitlist] = useState<any[]>([]);
 
   useEffect(() => {
     getStoreSettings().then((s) => {
@@ -42,6 +44,10 @@ export default function AdminPage() {
 
   useEffect(() => {
     getDaysOff().then(setDaysOff);
+  }, []);
+
+  useEffect(() => {
+    getWaitlist().then(setWaitlist);
   }, []);
 
   async function handleAddDayOff() {
@@ -73,7 +79,29 @@ export default function AdminPage() {
         <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xl">📊</div>
       </div>
 
+      {/* Tab Bar */}
+      <div className="px-6 mb-8 flex gap-3 flex-row-reverse">
+        <button
+          onClick={() => setActiveTab("bookings")}
+          className={`flex-1 h-11 rounded-2xl font-bold text-sm transition-all ${activeTab === "bookings" ? "bg-primary/15 border border-primary/40 text-primary" : "bg-white/[0.03] border border-white/[0.08] text-white/30"}`}
+        >
+          תורים
+        </button>
+        <button
+          onClick={() => setActiveTab("waitlist")}
+          className={`flex-1 h-11 rounded-2xl font-bold text-sm transition-all relative ${activeTab === "waitlist" ? "bg-primary/15 border border-primary/40 text-primary" : "bg-white/[0.03] border border-white/[0.08] text-white/30"}`}
+        >
+          רשימת המתנה
+          {waitlist.length > 0 && (
+            <span className="absolute -top-1.5 -left-1.5 w-5 h-5 rounded-full bg-primary text-black text-[10px] font-black flex items-center justify-center">
+              {waitlist.length}
+            </span>
+          )}
+        </button>
+      </div>
+
       <div className="px-6 space-y-10">
+        {activeTab === "bookings" && <>
         {/* Announcement Section */}
         <section className="reveal text-right">
           <label className="text-[10px] uppercase tracking-[0.2em] font-black text-primary/60 ml-2 mb-4 block underline">הודעת מערכת ללקוחות</label>
@@ -191,7 +219,19 @@ export default function AdminPage() {
                                {booking && <p className="text-[10px] text-white/40">{booking.customerPhone}</p>}
                              </div>
                              {booking && (
-                               <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">מאושר</span>
+                               <div className="flex items-center gap-3">
+                                 <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">מאושר</span>
+                                 <button
+                                   onClick={async () => {
+                                     await cancelBooking(booking.id);
+                                     const updated = await getBookingsForDate(selectedDate);
+                                     setBookings(updated);
+                                   }}
+                                   className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 transition-all"
+                                 >
+                                   ביטול
+                                 </button>
+                               </div>
                              )}
                            </div>
                          );
@@ -270,6 +310,52 @@ export default function AdminPage() {
             )}
           </div>
         </section>
+        </>}
+
+        {activeTab === "waitlist" && (
+          <section className="reveal text-right">
+            <label className="text-[10px] uppercase tracking-[0.2em] font-black text-primary/60 ml-2 mb-4 block underline">
+              רשימת המתנה ({waitlist.length})
+            </label>
+            {waitlist.length === 0 ? (
+              <p className="text-center text-white/20 text-sm py-10">רשימת המתנה ריקה כרגע</p>
+            ) : (
+              <div className="space-y-3">
+                {waitlist.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="p-5 rounded-[24px] bg-white/[0.03] border border-white/10 flex items-center justify-between flex-row-reverse"
+                  >
+                    <div className="text-right">
+                      <p className="text-xs font-black text-primary mb-1">{entry.requestedDate}</p>
+                      <h4 className="font-bold text-base">{entry.customerName}</h4>
+                      <p className="text-[10px] text-white/40">{entry.phoneNumber}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <a
+                        href={`https://wa.me/972${entry.phoneNumber.replace(/^0/, '')}?text=${encodeURIComponent(`שלום ${entry.customerName}! פנה מקום בתאריך ${entry.requestedDate} אצל גולן ברבר 💈 ניתן להזמין תור באתר`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-green-500/20 border border-green-500/30 text-green-400 hover:bg-green-500/30 transition-all"
+                      >
+                        הודע
+                      </a>
+                      <button
+                        onClick={async () => {
+                          await removeFromWaitlist(entry.id);
+                          setWaitlist((prev) => prev.filter((e) => e.id !== entry.id));
+                        }}
+                        className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-white/30 hover:border-red-500/40 hover:text-red-400 transition-all"
+                      >
+                        הסר
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </div>
     </div>
   );

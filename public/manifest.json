@@ -1,0 +1,26 @@
+{
+  "name": "גולן מספרה",
+  "short_name": "גולן מספרה",
+  "description": "תספורות פרימיום וטיפוח לגברים אצל גולן ברבר",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#D4AF37",
+  "orientation": "portrait-primary",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/premium_3d_barber_asset_1773892107951.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/premium_3d_barber_asset_1773892107951.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

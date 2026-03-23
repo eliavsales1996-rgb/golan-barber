@@ -111,6 +111,10 @@ export async function rejectBooking(id: string) {
   }
 }
 
+export async function cancelBooking(id: string) {
+  return rejectBooking(id);
+}
+
 export async function getBookingsForDate(dateStr: string) {
   const start = new Date(dateStr);
   start.setHours(0, 0, 0, 0);
@@ -147,6 +151,31 @@ export async function saveStoreSettings(message: string, isActive: boolean) {
     return { success: true };
   } catch (error) {
     console.error("[saveStoreSettings] error:", error);
+    return { success: false };
+  }
+}
+
+export async function addToWaitlist(customerName: string, phoneNumber: string, requestedDate: string) {
+  try {
+    await prisma.waitlist.create({ data: { customerName, phoneNumber, requestedDate } });
+    revalidatePath("/admin");
+    return { success: true };
+  } catch (error) {
+    console.error("[addToWaitlist] error:", error);
+    return { success: false };
+  }
+}
+
+export async function getWaitlist() {
+  return await prisma.waitlist.findMany({ orderBy: { createdAt: "asc" } });
+}
+
+export async function removeFromWaitlist(id: string) {
+  try {
+    await prisma.waitlist.delete({ where: { id } });
+    revalidatePath("/admin");
+    return { success: true };
+  } catch {
     return { success: false };
   }
 }
