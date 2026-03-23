@@ -19,6 +19,7 @@ model Booking {
   customerPhone String
   date          DateTime
   timeSlot      String
+  status        String   @default("PENDING")
   createdAt     DateTime @default(now())
 }
 
@@ -27,4 +28,11 @@ model DayOff {
   date      DateTime @unique
   reason    String?
   createdAt DateTime @default(now())
+}
+
+model StoreSettings {
+  id        String   @id @default(cuid())
+  message   String
+  isActive  Boolean  @default(false)
+  updatedAt DateTime @updatedAt
 }

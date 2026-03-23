@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect } from 'react';
-import { createBooking, getAvailableSlots, getDaysOff } from '../lib/actions';
+import { createBooking, getAvailableSlots, getDaysOff, getStoreSettings } from '../lib/actions';
 import { SERVICES } from '../lib/bookings';
 
 export default function Page() {
@@ -15,6 +15,13 @@ export default function Page() {
   const [slots, setSlots] = useState<{time: string, available: boolean}[]>([]);
   const [loading, setLoading] = useState(false);
   const [blockedDates, setBlockedDates] = useState<Map<string, string | null>>(new Map());
+  const [announcement, setAnnouncement] = useState<{ message: string; isActive: boolean } | null>(null);
+
+  useEffect(() => {
+    getStoreSettings().then((s) => {
+      if (s) setAnnouncement({ message: s.message, isActive: s.isActive });
+    });
+  }, []);
 
   useEffect(() => {
     getDaysOff().then((days) => {
@@ -73,10 +80,11 @@ export default function Page() {
       <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center px-6">
         <div className="premium-card text-center reveal shadow-gold p-12 scale-up">
           <div className="w-24 h-24 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center text-5xl mx-auto mb-8 animate-bounce">✓</div>
-          <h2 className="text-4xl font-bold font-serif gold-gradient-text mb-4 tracking-tighter uppercase">הוזמן בהצלחה!</h2>
+          <h2 className="text-4xl font-bold font-serif gold-gradient-text mb-4 tracking-tighter uppercase">הבקשה התקבלה!</h2>
           <p className="text-white/40 text-lg mb-10 text-right leading-relaxed font-light">
-             תודה {name}, התור נקבע! <br />
-             בתאריך {selectedDate} בשעה {selectedSlot}
+             תודה {name}! <br />
+             התור התקבל וממתין לאישור הספר.<br />
+             <span className="text-white/25 text-base">{selectedDate} בשעה {selectedSlot}</span>
           </p>
           <button onClick={() => window.location.reload()} className="premium-btn-primary w-full h-16 rounded-2xl font-bold">הזמן תור נוסף</button>
         </div>
@@ -86,6 +94,16 @@ export default function Page() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white overflow-hidden pb-40">
+      {/* System Announcement Banner */}
+      {announcement?.isActive && announcement.message && (
+        <div className="w-full px-6 pt-6 z-50 relative">
+          <div className="max-w-xl mx-auto flex items-start gap-3 flex-row-reverse bg-primary/10 border border-primary/30 rounded-2xl px-5 py-4 shadow-gold">
+            <span className="text-primary text-lg mt-0.5">📢</span>
+            <p className="text-right text-sm font-bold text-primary/90 leading-relaxed">{announcement.message}</p>
+          </div>
+        </div>
+      )}
+
       {/* Cinematic Header Overlay */}
       <div className="relative h-[60vh] w-full flex flex-col items-center justify-center px-6 overflow-hidden">
         <div className="absolute inset-0 z-0">
@@ -133,36 +151,56 @@ export default function Page() {
             {/* Step 2: Date & Time */}
             <div className={`transition-all duration-700 ${selectedService ? 'opacity-100' : 'opacity-10 pointer-events-none'}`}>
                <label className="text-[10px] uppercase tracking-[0.3em] font-black text-white/20 mb-6 block text-right">02. בחר זמן</label>
+               {/* Blocked days with reasons banner */}
+               {(() => {
+                 const upcomingBlocked = dates
+                   .map(d => ({ dateStr: d.toISOString().split('T')[0], date: d }))
+                   .filter(({ dateStr }) => blockedDates.has(dateStr) && blockedDates.get(dateStr));
+                 return upcomingBlocked.length > 0 ? (
+                   <div className="mb-6 p-4 rounded-2xl bg-red-500/[0.07] border border-red-500/20 space-y-1 text-right">
+                     <p className="text-[9px] uppercase tracking-[0.3em] font-black text-red-400/70 mb-2">ימים חסומים קרובים</p>
+                     {upcomingBlocked.map(({ dateStr, date }) => (
+                       <p key={dateStr} className="text-[11px] text-white/40 leading-relaxed">
+                         <span className="text-red-400/80 font-bold">{date.toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })}</span>
+                         {' — '}{blockedDates.get(dateStr)}
+                       </p>
+                     ))}
+                   </div>
+                 ) : null;
+               })()}
+
                <div className="flex gap-4 overflow-x-auto pb-6 no-scrollbar flex-row-reverse mb-8">
                   {dates.map((date, i) => {
                     const dateStr = date.toISOString().split('T')[0];
                     const isSelected = selectedDate === dateStr;
                     const isBlocked = blockedDates.has(dateStr);
-                    const blockReason = blockedDates.get(dateStr) || "הספר לא עובד ביום זה";
+                    const blockReason = blockedDates.get(dateStr);
                     return (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => {
-                          if (isBlocked) {
-                            alert(blockReason);
-                            return;
-                          }
-                          setSelectedDate(dateStr);
-                          setSelectedSlot("");
-                        }}
-                        className={`flex-shrink-0 w-16 h-24 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all ${
-                          isBlocked
-                            ? 'bg-white/[0.02] border border-white/5 text-white/20 opacity-40 line-through'
-                            : isSelected
-                              ? 'bg-gold-gradient text-black scale-110 shadow-gold'
-                              : 'bg-white/[0.03] border border-white/5 text-white/40'
-                        }`}
-                      >
-                        <span className="text-[9px] font-black uppercase">{date.toLocaleDateString('he-IL', { weekday: 'short' })}</span>
-                        <span className="text-xl font-bold tracking-tighter">{date.getDate()}</span>
-                        {isBlocked && <span className="text-[8px] text-red-400/60 font-black">סגור</span>}
-                      </button>
+                      <div key={i} className="flex-shrink-0 flex flex-col items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isBlocked) return;
+                            setSelectedDate(dateStr);
+                            setSelectedSlot("");
+                          }}
+                          disabled={isBlocked}
+                          className={`w-16 h-24 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all ${
+                            isBlocked
+                              ? 'bg-white/[0.02] border border-white/5 text-white/20 opacity-40 cursor-not-allowed'
+                              : isSelected
+                                ? 'bg-gold-gradient text-black scale-110 shadow-gold'
+                                : 'bg-white/[0.03] border border-white/5 text-white/40'
+                          }`}
+                        >
+                          <span className="text-[9px] font-black uppercase">{date.toLocaleDateString('he-IL', { weekday: 'short' })}</span>
+                          <span className="text-xl font-bold tracking-tighter">{date.getDate()}</span>
+                          {isBlocked && <span className="text-[8px] text-red-400/60 font-black">סגור</span>}
+                        </button>
+                        {isBlocked && blockReason && (
+                          <span className="text-[8px] text-red-400/50 text-center leading-tight max-w-[64px] break-words">{blockReason}</span>
+                        )}
+                      </div>
                     );
                   })}
                </div>

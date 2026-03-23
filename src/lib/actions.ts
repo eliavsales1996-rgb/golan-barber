@@ -80,6 +80,7 @@ export async function createBooking(data: {
         customerPhone: data.customerPhone,
         date: new Date(data.date),
         timeSlot: data.timeSlot,
+        status: "PENDING",
       },
     });
     revalidatePath("/admin");
@@ -87,6 +88,26 @@ export async function createBooking(data: {
   } catch (error) {
     console.error("Booking error:", error);
     return { success: false, error: "Failed to create booking" };
+  }
+}
+
+export async function approveBooking(id: string) {
+  try {
+    await prisma.booking.update({ where: { id }, data: { status: "APPROVED" } });
+    revalidatePath("/admin");
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
+}
+
+export async function rejectBooking(id: string) {
+  try {
+    await prisma.booking.update({ where: { id }, data: { status: "REJECTED" } });
+    revalidatePath("/admin");
+    return { success: true };
+  } catch {
+    return { success: false };
   }
 }
 
@@ -109,6 +130,27 @@ export async function getBookingsForDate(dateStr: string) {
   });
 }
 
+export async function getStoreSettings() {
+  return await prisma.storeSettings.findFirst();
+}
+
+export async function saveStoreSettings(message: string, isActive: boolean) {
+  try {
+    const existing = await prisma.storeSettings.findFirst();
+    if (existing) {
+      await prisma.storeSettings.update({ where: { id: existing.id }, data: { message, isActive } });
+    } else {
+      await prisma.storeSettings.create({ data: { message, isActive } });
+    }
+    revalidatePath("/admin");
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("[saveStoreSettings] error:", error);
+    return { success: false };
+  }
+}
+
 export async function getAvailableSlots(dateStr: string) {
   const bookings = await getBookingsForDate(dateStr);
   const interval = 45;
@@ -120,16 +162,17 @@ export async function getAvailableSlots(dateStr: string) {
     const hours = current.getHours().toString().padStart(2, '0');
     const minutes = current.getMinutes().toString().padStart(2, '0');
     const timeStr = `${hours}:${minutes}`;
-    
-    const isTaken = bookings.some((b: any) => b.timeSlot === timeStr);
-    
+
+    // REJECTED bookings free up the slot
+    const isTaken = bookings.some((b: any) => b.timeSlot === timeStr && b.status !== "REJECTED");
+
     slots.push({
       time: timeStr,
       available: !isTaken,
     });
-    
+
     current = new Date(current.getTime() + interval * 60000);
   }
-  
+
   return slots;
 }
