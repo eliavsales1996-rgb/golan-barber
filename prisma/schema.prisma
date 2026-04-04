@@ -9,8 +9,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // DATABASE_URL  → Supabase Session Pooler (serverless-safe, many short connections)
+  // DIRECT_URL    → Supabase direct connection (used only for migrations/schema push)
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Booking {
