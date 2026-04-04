@@ -67,24 +67,27 @@ export async function createBooking(data: {
   timeSlot: string;
 }) {
   try {
+    // Anchor to UTC midnight to match how addDayOff stores dates.
+    const bookingDate = new Date(data.date + "T00:00:00.000Z");
+
     const dayOff = await prisma.dayOff.findFirst({
-      where: { date: new Date(data.date) },
+      where: { date: bookingDate },
     });
     if (dayOff) {
       return { success: false, error: "הספר לא עובד ביום זה" };
     }
 
-    const booking = await prisma.booking.create({
+    await prisma.booking.create({
       data: {
         customerName: data.customerName,
         customerPhone: data.customerPhone,
-        date: new Date(data.date),
+        date: bookingDate,
         timeSlot: data.timeSlot,
         status: "PENDING",
       },
     });
     revalidatePath("/admin");
-    return { success: true, booking };
+    return { success: true };
   } catch (error) {
     console.error("Booking error:", error);
     return { success: false, error: "Failed to create booking" };
@@ -116,12 +119,13 @@ export async function cancelBooking(id: string) {
 }
 
 export async function getBookingsForDate(dateStr: string) {
-  const start = new Date(dateStr);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(dateStr);
-  end.setHours(23, 59, 59, 999);
+  // Use explicit UTC range to avoid timezone drift when setHours() is called on
+  // a UTC-parsed ISO date-only string (e.g. new Date("2026-04-05") = UTC midnight,
+  // then setHours(0,0,0,0) silently shifts to local midnight on non-UTC servers).
+  const start = new Date(dateStr + "T00:00:00.000Z");
+  const end = new Date(dateStr + "T23:59:59.999Z");
 
-  return await prisma.booking.findMany({
+  const bookings = await prisma.booking.findMany({
     where: {
       date: {
         gte: start,
@@ -132,6 +136,18 @@ export async function getBookingsForDate(dateStr: string) {
       timeSlot: "asc",
     },
   });
+
+  // Serialize Date objects to ISO strings so they are safe to pass back to
+  // client components via Server Actions.
+  return bookings.map((b) => ({
+    id: b.id,
+    customerName: b.customerName,
+    customerPhone: b.customerPhone,
+    date: b.date.toISOString(),
+    timeSlot: b.timeSlot,
+    status: b.status,
+    createdAt: b.createdAt.toISOString(),
+  }));
 }
 
 export async function getStoreSettings() {

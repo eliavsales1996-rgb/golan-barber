@@ -5,9 +5,19 @@ import { useState, useEffect } from 'react';
 import { createBooking, getAvailableSlots, getDaysOff, getStoreSettings, addToWaitlist } from '../lib/actions';
 import { SERVICES } from '../lib/bookings';
 
+// Build a YYYY-MM-DD string from a Date using LOCAL calendar fields, not UTC.
+// date.toISOString() returns UTC which can differ by a day for users east of UTC.
+function toLocalDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export default function Page() {
   const [selectedService, setSelectedService] = useState("");
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  // Empty string on first render (server + client agree) → populated in useEffect.
+  const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlot, setSelectedSlot] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -16,10 +26,28 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [blockedDates, setBlockedDates] = useState<Map<string, string | null>>(new Map());
   const [announcement, setAnnouncement] = useState<{ message: string; isActive: boolean } | null>(null);
+  // dates array is state (not computed in render) so server and client agree on
+  // the initial empty array, avoiding hydration mismatch error #418.
+  const [dates, setDates] = useState<Date[]>([]);
   const [waitlistName, setWaitlistName] = useState("");
   const [waitlistPhone, setWaitlistPhone] = useState("");
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [waitlistDone, setWaitlistDone] = useState(false);
+
+  // Populate today's date and the 14-day window only on the client, after mount.
+  // This is the only safe place to call new Date() without risking a hydration
+  // mismatch when the server timezone differs from the browser timezone.
+  useEffect(() => {
+    const today = new Date();
+    setSelectedDate(toLocalDateStr(today));
+    const upcoming: Date[] = [];
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      upcoming.push(d);
+    }
+    setDates(upcoming);
+  }, []);
 
   useEffect(() => {
     getStoreSettings().then((s) => {
@@ -38,6 +66,10 @@ export default function Page() {
   }, [selectedDate]);
 
   useEffect(() => {
+    // selectedDate is "" until the client-side useEffect above runs.
+    // Skip the fetch until we have a valid date string.
+    if (!selectedDate) return;
+
     async function fetchSlots() {
       setLoading(true);
       try {
@@ -45,6 +77,7 @@ export default function Page() {
         setSlots(availableSlots);
       } catch (err) {
         console.error("Failed to fetch slots:", err);
+        setSlots([]);
       }
       setLoading(false);
     }
@@ -75,13 +108,6 @@ export default function Page() {
       alert("שגיאה בקביעת התור. ייתכן והסלוט כבר נתפס.");
     }
   };
-
-  const dates = [];
-  for (let i = 0; i < 14; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    dates.push(d);
-  }
 
   if (isSuccess) {
     return (
@@ -162,7 +188,7 @@ export default function Page() {
                {/* Blocked days with reasons banner */}
                {(() => {
                  const upcomingBlocked = dates
-                   .map(d => ({ dateStr: d.toISOString().split('T')[0], date: d }))
+                   .map(d => ({ dateStr: toLocalDateStr(d), date: d }))
                    .filter(({ dateStr }) => blockedDates.has(dateStr) && blockedDates.get(dateStr));
                  return upcomingBlocked.length > 0 ? (
                    <div className="mb-6 p-4 rounded-2xl bg-red-500/[0.07] border border-red-500/20 space-y-1 text-right">
@@ -179,7 +205,7 @@ export default function Page() {
 
                <div className="flex gap-4 overflow-x-auto pb-6 no-scrollbar flex-row-reverse mb-8">
                   {dates.map((date, i) => {
-                    const dateStr = date.toISOString().split('T')[0];
+                    const dateStr = toLocalDateStr(date);
                     const isSelected = selectedDate === dateStr;
                     const isBlocked = blockedDates.has(dateStr);
                     const blockReason = blockedDates.get(dateStr);
