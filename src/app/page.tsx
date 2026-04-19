@@ -111,7 +111,7 @@ export default function Page() {
 
   if (isSuccess) {
     return (
-      <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center px-6">
+      <div className="min-h-screen bg-[#030d08] flex flex-col items-center justify-center px-6">
         <div className="premium-card text-center reveal shadow-gold p-12 scale-up">
           <div className="w-24 h-24 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center text-5xl mx-auto mb-8 animate-bounce">✓</div>
           <h2 className="text-4xl font-bold font-serif gold-gradient-text mb-4 tracking-tighter uppercase">הבקשה התקבלה!</h2>
@@ -127,7 +127,7 @@ export default function Page() {
   }
 
   return (
-    <main className="min-h-screen bg-[#050505] text-white overflow-hidden pb-40">
+    <main className="min-h-screen bg-[#030d08] text-white overflow-hidden pb-40">
       {/* System Announcement Banner */}
       {announcement?.isActive && announcement.message && (
         <div className="w-full px-6 pt-6 z-50 relative">
@@ -141,7 +141,7 @@ export default function Page() {
       {/* Cinematic Header Overlay */}
       <div className="relative h-[60vh] w-full flex flex-col items-center justify-center px-6 overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(212,175,55,0.08),transparent_70%)] animate-pulse-slow" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(64,145,108,0.10),transparent_70%)] animate-pulse-slow" />
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 blur-[120px] rounded-full animate-float-slow" />
         </div>
 

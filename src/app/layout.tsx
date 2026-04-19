@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#D4AF37",
+  themeColor: "#40916c",
   width: "device-width",
   initialScale: 1,
 };
@@ -43,7 +43,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="גולן מספרה" />
         <link rel="apple-touch-icon" href="/premium_3d_barber_asset_1773892107951.png" />
       </head>
-      <body className="antialiased pb-20 md:pb-0 font-sans bg-[#050505]">
+      <body className="antialiased pb-20 md:pb-0 font-sans bg-[#030d08]">
         {children}
         <BottomNav />
         <Script id="sw-register" strategy="afterInteractive">
