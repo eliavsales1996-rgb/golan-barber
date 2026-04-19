@@ -2,7 +2,22 @@
   "permissions": {
     "allow": [
       "Skill(update-config)",
-      "Skill(update-config:*)"
+      "Skill(update-config:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(mkdir -p \"/c/Users/אליאב/Desktop/אפליקציות/גולן אפליקציה/.claude/skills\")",
+      "Bash(git clone:*)",
+      "Bash(ffmpeg -version)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(npm install *)",
+      "Bash(npx web-push *)",
+      "Bash(npx prisma *)",
+      "mcp__supabase__list_projects",
+      "mcp__supabase__apply_migration",
+      "Bash(npx vercel *)"
     ]
   }
 }

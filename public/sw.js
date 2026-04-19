@@ -1,6 +1,5 @@
-const CACHE_NAME = 'golan-barber-v1';
+const CACHE_NAME = 'golan-barber-v2';
 
-// Pre-cache the app shell
 const PRECACHE_URLS = ['/', '/admin'];
 
 self.addEventListener('install', (event) => {
@@ -22,12 +21,10 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // Let Next.js internals and server actions pass through uncached
   if (
     url.pathname.startsWith('/_next/') ||
     url.pathname.startsWith('/api/') ||
@@ -36,7 +33,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first for HTML pages (keeps content fresh)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -50,7 +46,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for static assets (images, fonts, etc.)
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
@@ -61,6 +56,45 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       });
+    })
+  );
+});
+
+// ── Push Notifications ────────────────────────────────────────────────────────
+
+self.addEventListener('push', (event) => {
+  let payload = { title: 'גולן ברבר', body: 'עדכון על התור שלך' };
+  try {
+    payload = event.data ? event.data.json() : payload;
+  } catch {
+    payload.body = event.data ? event.data.text() : payload.body;
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: '/premium_3d_barber_asset_1773892107951.png',
+      badge: '/premium_3d_barber_asset_1773892107951.png',
+      dir: 'rtl',
+      lang: 'he',
+      vibrate: [200, 100, 200, 100, 200],
+      tag: 'appointment-status',
+      renotify: true,
+      data: { url: '/' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      return clients.openWindow('/');
     })
   );
 });

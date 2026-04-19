@@ -17,13 +17,14 @@ datasource db {
 }
 
 model Booking {
-  id            String   @id @default(cuid())
-  customerName  String
-  customerPhone String
-  date          DateTime
-  timeSlot      String
-  status        String   @default("PENDING")
-  createdAt     DateTime @default(now())
+  id               String   @id @default(cuid())
+  customerName     String
+  customerPhone    String
+  date             DateTime
+  timeSlot         String
+  status           String   @default("PENDING")
+  pushSubscription String?
+  createdAt        DateTime @default(now())
 }
 
 model DayOff {

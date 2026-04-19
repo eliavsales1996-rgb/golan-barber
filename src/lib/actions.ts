@@ -2,6 +2,25 @@
 
 import { prisma } from "./prisma";
 import { revalidatePath } from "next/cache";
+import webpush from "web-push";
+
+webpush.setVapidDetails(
+  process.env.VAPID_SUBJECT!,
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+  process.env.VAPID_PRIVATE_KEY!
+);
+
+async function sendPush(pushSubscription: string | null, title: string, body: string) {
+  if (!pushSubscription) return;
+  try {
+    await webpush.sendNotification(
+      JSON.parse(pushSubscription),
+      JSON.stringify({ title, body })
+    );
+  } catch (err) {
+    console.error("[Push] send failed:", err);
+  }
+}
 
 export async function getDaysOff() {
   const daysOff = await prisma.dayOff.findMany({ orderBy: { date: "asc" } });
@@ -14,7 +33,6 @@ export async function getDaysOff() {
 
 export async function addDayOff(startDateStr: string, endDateStr: string, reason?: string) {
   try {
-    // Force UTC midnight to avoid timezone shifts (e.g. "2026-03-25" -> 2026-03-25T00:00:00.000Z)
     const start = new Date(startDateStr + "T00:00:00.000Z");
     const end = new Date(endDateStr + "T00:00:00.000Z");
 
@@ -29,7 +47,6 @@ export async function addDayOff(startDateStr: string, endDateStr: string, reason
       current.setUTCDate(current.getUTCDate() + 1);
     }
 
-    // upsert each day: updates reason if date already blocked, creates if not
     await Promise.all(
       dates.map((date) =>
         prisma.dayOff.upsert({
@@ -65,14 +82,12 @@ export async function createBooking(data: {
   customerPhone: string;
   date: string;
   timeSlot: string;
+  pushSubscription?: string;
 }) {
   try {
-    // Anchor to UTC midnight to match how addDayOff stores dates.
     const bookingDate = new Date(data.date + "T00:00:00.000Z");
 
-    const dayOff = await prisma.dayOff.findFirst({
-      where: { date: bookingDate },
-    });
+    const dayOff = await prisma.dayOff.findFirst({ where: { date: bookingDate } });
     if (dayOff) {
       return { success: false, error: "הספר לא עובד ביום זה" };
     }
@@ -84,6 +99,7 @@ export async function createBooking(data: {
         date: bookingDate,
         timeSlot: data.timeSlot,
         status: "PENDING",
+        pushSubscription: data.pushSubscription ?? null,
       },
     });
     revalidatePath("/admin");
@@ -96,7 +112,15 @@ export async function createBooking(data: {
 
 export async function approveBooking(id: string) {
   try {
-    await prisma.booking.update({ where: { id }, data: { status: "APPROVED" } });
+    const booking = await prisma.booking.update({
+      where: { id },
+      data: { status: "APPROVED" },
+    });
+    await sendPush(
+      booking.pushSubscription,
+      "✅ התור אושר!",
+      `שלום ${booking.customerName}! התור שלך ב-${booking.timeSlot} אושר על ידי גולן ✂️`
+    );
     revalidatePath("/admin");
     return { success: true };
   } catch {
@@ -106,7 +130,15 @@ export async function approveBooking(id: string) {
 
 export async function rejectBooking(id: string) {
   try {
-    await prisma.booking.update({ where: { id }, data: { status: "REJECTED" } });
+    const booking = await prisma.booking.update({
+      where: { id },
+      data: { status: "REJECTED" },
+    });
+    await sendPush(
+      booking.pushSubscription,
+      "❌ התור נדחה",
+      `שלום ${booking.customerName}, לצערנו התור שלך ב-${booking.timeSlot} נדחה. ניתן להזמין תור חדש באתר.`
+    );
     revalidatePath("/admin");
     return { success: true };
   } catch {
@@ -119,26 +151,14 @@ export async function cancelBooking(id: string) {
 }
 
 export async function getBookingsForDate(dateStr: string) {
-  // Use explicit UTC range to avoid timezone drift when setHours() is called on
-  // a UTC-parsed ISO date-only string (e.g. new Date("2026-04-05") = UTC midnight,
-  // then setHours(0,0,0,0) silently shifts to local midnight on non-UTC servers).
   const start = new Date(dateStr + "T00:00:00.000Z");
   const end = new Date(dateStr + "T23:59:59.999Z");
 
   const bookings = await prisma.booking.findMany({
-    where: {
-      date: {
-        gte: start,
-        lte: end,
-      },
-    },
-    orderBy: {
-      timeSlot: "asc",
-    },
+    where: { date: { gte: start, lte: end } },
+    orderBy: { timeSlot: "asc" },
   });
 
-  // Serialize Date objects to ISO strings so they are safe to pass back to
-  // client components via Server Actions.
   return bookings.map((b) => ({
     id: b.id,
     customerName: b.customerName,
@@ -204,18 +224,11 @@ export async function getAvailableSlots(dateStr: string) {
   const end = new Date(`${dateStr}T20:00:00`);
 
   while (current < end) {
-    const hours = current.getHours().toString().padStart(2, '0');
-    const minutes = current.getMinutes().toString().padStart(2, '0');
+    const hours = current.getHours().toString().padStart(2, "0");
+    const minutes = current.getMinutes().toString().padStart(2, "0");
     const timeStr = `${hours}:${minutes}`;
-
-    // REJECTED bookings free up the slot
     const isTaken = bookings.some((b: any) => b.timeSlot === timeStr && b.status !== "REJECTED");
-
-    slots.push({
-      time: timeStr,
-      available: !isTaken,
-    });
-
+    slots.push({ time: timeStr, available: !isTaken });
     current = new Date(current.getTime() + interval * 60000);
   }
 

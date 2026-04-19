@@ -4,6 +4,30 @@ import { useState, useEffect } from 'react';
 import { createBooking, getAvailableSlots, getDaysOff, getStoreSettings, addToWaitlist } from '../lib/actions';
 import { SERVICES } from '../lib/bookings';
 
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
+async function subscribeToPush(): Promise<string | undefined> {
+  try {
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    const sub = existing ?? await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+    });
+    return JSON.stringify(sub);
+  } catch {
+    return undefined;
+  }
+}
+
 function toLocalDateStr(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -155,11 +179,14 @@ export default function Page() {
       return;
     }
 
+    const pushSubscription = await subscribeToPush();
+
     const result = await createBooking({
       date: selectedDate,
       timeSlot: selectedSlot,
       customerName: name,
       customerPhone: phone,
+      pushSubscription,
     });
 
     if (result.success) {
