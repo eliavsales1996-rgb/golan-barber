@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { createBooking, getAvailableSlots, getDaysOff, getStoreSettings, addToWaitlist } from '../lib/actions';
+import { createBooking, getAvailableSlots, getDaysOff, getStoreSettings, addToWaitlist, getBookingsByPhone, cancelBookingByCustomer } from '../lib/actions';
 import { SERVICES } from '../lib/bookings';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -126,6 +126,12 @@ export default function Page() {
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [waitlistDone, setWaitlistDone] = useState(false);
   const [waitlistPushSub, setWaitlistPushSub] = useState<string | undefined>(undefined);
+  const [showMyBookings, setShowMyBookings] = useState(false);
+  const [myBookingsPhone, setMyBookingsPhone] = useState("");
+  const [myBookings, setMyBookings] = useState<any[]>([]);
+  const [myBookingsLoading, setMyBookingsLoading] = useState(false);
+  const [myBookingsSearched, setMyBookingsSearched] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const step3Ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -264,6 +270,90 @@ export default function Page() {
           <div className="max-w-xl mx-auto flex items-start gap-3 flex-row-reverse bg-primary/8 border border-primary/25 rounded-2xl px-5 py-4">
             <span className="text-primary/80 text-sm mt-0.5 flex-shrink-0">◈</span>
             <p className="text-right text-sm font-semibold text-primary/80 leading-relaxed">{announcement.message}</p>
+          </div>
+        </div>
+      )}
+
+      {/* My Bookings Button */}
+      <div className="w-full px-6 pt-4 z-50 relative flex justify-end">
+        <button
+          onClick={() => setShowMyBookings((v) => !v)}
+          className="text-[10px] font-black uppercase tracking-widest px-5 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white/30 hover:border-primary/30 hover:text-primary/60 transition-all"
+        >
+          הזמנות שלי
+        </button>
+      </div>
+
+      {/* My Bookings Panel */}
+      {showMyBookings && (
+        <div className="w-full px-6 pt-3 z-50 relative max-w-xl mx-auto">
+          <div className="bg-white/[0.03] border border-white/[0.08] rounded-[24px] p-6 text-right space-y-4">
+            <p className="text-[9px] uppercase tracking-[0.3em] font-black text-primary/50">בדוק / בטל תור קיים</p>
+            <div className="flex gap-2">
+              <input
+                type="tel"
+                placeholder="מספר טלפון"
+                value={myBookingsPhone}
+                onChange={(e) => setMyBookingsPhone(e.target.value)}
+                className="flex-1 bg-white/[0.03] border border-white/[0.07] rounded-xl py-3 px-4 text-white outline-none focus:border-primary/45 text-right placeholder:text-white/15 text-sm"
+              />
+              <button
+                onClick={async () => {
+                  if (!myBookingsPhone) return;
+                  setMyBookingsLoading(true);
+                  const results = await getBookingsByPhone(myBookingsPhone);
+                  setMyBookings(results);
+                  setMyBookingsSearched(true);
+                  setMyBookingsLoading(false);
+                }}
+                disabled={myBookingsLoading || !myBookingsPhone}
+                className="px-5 py-3 rounded-xl font-bold text-sm bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-all disabled:opacity-30"
+              >
+                {myBookingsLoading ? "..." : "חפש"}
+              </button>
+            </div>
+
+            {myBookingsSearched && myBookings.length === 0 && (
+              <p className="text-white/30 text-sm text-center py-2">לא נמצאו תורים פעילים</p>
+            )}
+
+            {myBookings.map((b) => {
+              const [slotHours, slotMinutes] = b.timeSlot.split(":").map(Number);
+              const appointmentMs = new Date(b.date + "T00:00:00.000Z").getTime() + (slotHours * 60 + slotMinutes) * 60000;
+              const canCancel = Date.now() < appointmentMs - 3 * 60 * 60 * 1000;
+
+              return (
+                <div key={b.id} className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.07] flex items-center justify-between flex-row-reverse">
+                  <div className="text-right">
+                    <p className="text-xs font-black text-primary">{b.timeSlot} · {b.date}</p>
+                    <p className="text-sm font-bold text-white/80">{b.customerName}</p>
+                    <p className="text-[10px] text-white/30">{b.status === "APPROVED" ? "מאושר" : "ממתין לאישור"}</p>
+                  </div>
+                  <button
+                    disabled={!canCancel || cancellingId === b.id}
+                    title={canCancel ? "בטל תור" : "לא ניתן לבטל פחות מ-3 שעות לפני"}
+                    onClick={async () => {
+                      if (!canCancel) return;
+                      setCancellingId(b.id);
+                      const result = await cancelBookingByCustomer(b.id, myBookingsPhone);
+                      if (result.success) {
+                        setMyBookings((prev) => prev.filter((x) => x.id !== b.id));
+                      } else {
+                        alert(result.error || "שגיאה בביטול");
+                      }
+                      setCancellingId(null);
+                    }}
+                    className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${
+                      canCancel
+                        ? "bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30"
+                        : "opacity-25 bg-white/[0.03] border border-white/10 text-white/30 cursor-not-allowed"
+                    }`}
+                  >
+                    {cancellingId === b.id ? "מבטל..." : "בטל תור"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
