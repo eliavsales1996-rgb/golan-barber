@@ -374,3 +374,51 @@ export async function saveBarberPushSubscription(sub: string) {
     return { success: false };
   }
 }
+
+export async function getBookingsByPhone(phone: string) {
+  const bookings = await prisma.booking.findMany({
+    where: {
+      customerPhone: phone,
+      status: { in: ["PENDING", "APPROVED"] },
+    },
+    orderBy: { date: "asc" },
+  });
+  return bookings.map((b) => ({
+    id: b.id,
+    customerName: b.customerName,
+    customerPhone: b.customerPhone,
+    date: b.date.toISOString().split("T")[0],
+    timeSlot: b.timeSlot,
+    status: b.status,
+  }));
+}
+
+export async function cancelBookingByCustomer(bookingId: string, phone: string) {
+  try {
+    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+    if (!booking) return { success: false, error: "תור לא נמצא" };
+    if (booking.customerPhone !== phone) return { success: false, error: "פרטים לא תואמים" };
+    if (booking.status !== "PENDING" && booking.status !== "APPROVED") {
+      return { success: false, error: "לא ניתן לבטל תור זה" };
+    }
+
+    // 3-hour rule: booking.date is midnight UTC, timeSlot is "HH:MM"
+    const [slotHours, slotMinutes] = booking.timeSlot.split(":").map(Number);
+    const appointmentMs = booking.date.getTime() + (slotHours * 60 + slotMinutes) * 60000;
+    const threeHoursMs = 3 * 60 * 60 * 1000;
+
+    if (Date.now() > appointmentMs - threeHoursMs) {
+      return { success: false, error: "לא ניתן לבטל פחות מ-3 שעות לפני התספורת" };
+    }
+
+    await prisma.booking.update({ where: { id: bookingId }, data: { status: "CANCELLED" } });
+
+    const dateStr = booking.date.toISOString().split("T")[0];
+    await notifyWaitlistForDate(dateStr);
+
+    revalidatePath("/admin");
+    return { success: true };
+  } catch {
+    return { success: false, error: "שגיאה בביטול התור" };
+  }
+}
