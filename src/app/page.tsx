@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createBooking, getAvailableSlots, getDaysOff, getStoreSettings, addToWaitlist } from '../lib/actions';
 import { SERVICES } from '../lib/bookings';
 
@@ -125,6 +125,8 @@ export default function Page() {
   const [waitlistPhone, setWaitlistPhone] = useState("");
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [waitlistDone, setWaitlistDone] = useState(false);
+  const [waitlistPushSub, setWaitlistPushSub] = useState<string | undefined>(undefined);
+  const step3Ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const today = new Date();
@@ -155,6 +157,14 @@ export default function Page() {
   }, [selectedDate]);
 
   useEffect(() => {
+    if (!selectedSlot) return;
+    const timer = setTimeout(() => {
+      step3Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [selectedSlot]);
+
+  useEffect(() => {
     if (!selectedDate) return;
     async function fetchSlots() {
       setLoading(true);
@@ -172,7 +182,9 @@ export default function Page() {
 
   const handleBook = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSlot || !name || !phone || !selectedService) return;
+    if (!selectedService) { alert("אנא בחר שירות קודם"); return; }
+    if (!selectedSlot) { alert("אנא בחר שעה קודם"); return; }
+    if (!name || !phone) return;
 
     if (blockedDates.has(selectedDate)) {
       alert(blockedDates.get(selectedDate) || "הספר לא עובד ביום זה");
@@ -274,7 +286,7 @@ export default function Page() {
             <span className="text-[9px] font-black uppercase tracking-[0.5em] text-primary/60">Barbershop Excellence</span>
             <div className="w-12 h-px bg-primary/30" />
           </div>
-          <p className="text-white/20 text-xs tracking-[0.2em] uppercase">תל אביב · Premium Grooming</p>
+          <p className="text-white/20 text-xs tracking-[0.15em]">הרב עובדיה · עכו · המתחם החדש</p>
         </div>
       </div>
 
@@ -331,7 +343,7 @@ export default function Page() {
             </div>
 
             {/* ── Step 2: Date & Time ── */}
-            <div className={`transition-all duration-700 ${selectedService ? 'opacity-100' : 'opacity-10 pointer-events-none'}`}>
+            <div>
               <div className="step-label">
                 <div className="step-label-line" />
                 <span className="step-label-text">בחר זמן</span>
@@ -459,12 +471,27 @@ export default function Page() {
                           className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl py-3 px-5 text-white outline-none focus:border-primary/45 text-right placeholder:text-white/15 text-sm transition-colors"
                         />
                       </div>
+                      {!waitlistPushSub && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const sub = await subscribeToPush();
+                            if (sub) setWaitlistPushSub(sub);
+                          }}
+                          className="w-full h-10 rounded-xl font-bold text-xs bg-white/[0.03] border border-white/[0.07] text-white/40 hover:border-primary/30 hover:text-primary/60 transition-all mb-3"
+                        >
+                          🔔 אפשר התראה כשיפנה מקום
+                        </button>
+                      )}
+                      {waitlistPushSub && (
+                        <p className="text-[11px] text-primary/60 text-right mb-3">✓ תקבל התראה כשיפנה מקום</p>
+                      )}
                       <button
                         type="button"
                         disabled={waitlistLoading || !waitlistName || !waitlistPhone}
                         onClick={async () => {
                           setWaitlistLoading(true);
-                          await addToWaitlist(waitlistName, waitlistPhone, selectedDate);
+                          await addToWaitlist(waitlistName, waitlistPhone, selectedDate, waitlistPushSub);
                           setWaitlistLoading(false);
                           setWaitlistDone(true);
                         }}
@@ -479,7 +506,7 @@ export default function Page() {
             </div>
 
             {/* ── Step 3: Details ── */}
-            <div className={`space-y-5 transition-all duration-700 ${selectedSlot ? 'opacity-100' : 'opacity-10 pointer-events-none'}`}>
+            <div ref={step3Ref} className="space-y-5">
               <div className="step-label">
                 <div className="step-label-line" />
                 <span className="step-label-text">פרטי לקוח</span>
@@ -517,8 +544,9 @@ export default function Page() {
         </div>
 
         {/* Bottom signature */}
-        <div className="text-center mt-8 mb-4">
+        <div className="text-center mt-8 mb-4 space-y-2">
           <span className="text-white/10 text-[10px] tracking-[0.3em] uppercase">Golan Barber · Premium Grooming</span>
+          <p className="text-white/15 text-[10px] tracking-wide">נבנה ועוצב ע&quot;י בוטיגו פתרונות טכנולוגיים לעסקים</p>
         </div>
       </div>
     </main>
