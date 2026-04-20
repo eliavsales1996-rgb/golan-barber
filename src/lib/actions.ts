@@ -31,6 +31,21 @@ async function sendPush(pushSubscription: string | null, title: string, body: st
   }
 }
 
+async function notifyWaitlistForDate(dateStr: string) {
+  const entries = await prisma.waitlist.findMany({
+    where: { requestedDate: dateStr, pushSubscription: { not: null } },
+  });
+  await Promise.all(
+    entries.map((e) =>
+      sendPush(
+        e.pushSubscription,
+        "✂️ פנה תור!",
+        `תור ל-${dateStr} התפנה אצל גולן ברבר. לחץ להזמנה.`
+      )
+    )
+  );
+}
+
 export async function getDaysOff() {
   const daysOff = await prisma.dayOff.findMany({ orderBy: { date: "asc" } });
   return daysOff.map((d) => ({
@@ -159,6 +174,8 @@ export async function rejectBooking(id: string) {
       "❌ התור נדחה",
       `שלום ${booking.customerName}, לצערנו התור שלך ב-${booking.timeSlot} נדחה. ניתן להזמין תור חדש באתר.`
     );
+    const dateStr = booking.date.toISOString().split("T")[0];
+    await notifyWaitlistForDate(dateStr);
     revalidatePath("/admin");
     return { success: true };
   } catch {
@@ -167,7 +184,23 @@ export async function rejectBooking(id: string) {
 }
 
 export async function cancelBooking(id: string) {
-  return rejectBooking(id);
+  try {
+    const booking = await prisma.booking.update({
+      where: { id },
+      data: { status: "CANCELLED" },
+    });
+    await sendPush(
+      booking.pushSubscription,
+      "❌ התור בוטל",
+      `שלום ${booking.customerName}, התור שלך ב-${booking.timeSlot} בוטל.`
+    );
+    const dateStr = booking.date.toISOString().split("T")[0];
+    await notifyWaitlistForDate(dateStr);
+    revalidatePath("/admin");
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
 }
 
 export async function getBookingsForDate(dateStr: string) {
@@ -211,9 +244,16 @@ export async function saveStoreSettings(message: string, isActive: boolean) {
   }
 }
 
-export async function addToWaitlist(customerName: string, phoneNumber: string, requestedDate: string) {
+export async function addToWaitlist(
+  customerName: string,
+  phoneNumber: string,
+  requestedDate: string,
+  pushSubscription?: string
+) {
   try {
-    await prisma.waitlist.create({ data: { customerName, phoneNumber, requestedDate } });
+    await prisma.waitlist.create({
+      data: { customerName, phoneNumber, requestedDate, pushSubscription: pushSubscription ?? null },
+    });
     revalidatePath("/admin");
     return { success: true };
   } catch (error) {
