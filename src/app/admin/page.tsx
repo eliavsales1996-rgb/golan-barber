@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getBookingsForDate, getAvailableSlots, getDaysOff, addDayOff, deleteDayOff, approveBooking, rejectBooking, cancelBooking, getStoreSettings, saveStoreSettings, getWaitlist, removeFromWaitlist, addBlockedHours, getBlockedHours, deleteBlockedHours } from "@/lib/actions";
+import { getBookingsForDate, getAvailableSlots, getDaysOff, addDayOff, deleteDayOff, approveBooking, rejectBooking, cancelBooking, getStoreSettings, saveStoreSettings, getWaitlist, removeFromWaitlist, addBlockedHours, getBlockedHours, deleteBlockedHours, saveBarberPushSubscription } from "@/lib/actions";
 
 export default function AdminPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
@@ -24,6 +24,7 @@ export default function AdminPage() {
   const [bhEnd, setBhEnd] = useState("16:00");
   const [bhReason, setBhReason] = useState("");
   const [bhLoading, setBhLoading] = useState(false);
+  const [barberSubActive, setBarberSubActive] = useState(false);
 
   useEffect(() => {
     getStoreSettings().then((s) => {
@@ -157,6 +158,39 @@ export default function AdminPage() {
                 className="text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-xl bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-all disabled:opacity-40"
               >
                 {announcementLoading ? "שומר..." : "שמור הודעה"}
+              </button>
+            </div>
+            {/* Barber push subscription */}
+            <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between flex-row-reverse">
+              <p className="text-[10px] text-white/30 font-black uppercase tracking-widest text-right">
+                {barberSubActive ? "✅ מנוי להתראות פעיל" : "התראות על הזמנות חדשות"}
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+                    alert("הדפדפן לא תומך בהתראות");
+                    return;
+                  }
+                  const permission = await Notification.requestPermission();
+                  if (permission !== 'granted') { alert("יש לאשר הרשאת התראות"); return; }
+                  const reg = await navigator.serviceWorker.ready;
+                  const existing = await reg.pushManager.getSubscription();
+                  const sub = existing ?? await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: (() => {
+                      const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
+                      const base64 = (key + '='.repeat((4 - key.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+                      return Uint8Array.from([...atob(base64)].map(c => c.charCodeAt(0)));
+                    })(),
+                  });
+                  const result = await saveBarberPushSubscription(JSON.stringify(sub));
+                  if (result.success) setBarberSubActive(true);
+                }}
+                disabled={barberSubActive}
+                className="text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-xl bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 transition-all disabled:opacity-40"
+              >
+                {barberSubActive ? "פעיל" : "הפעל התראות"}
               </button>
             </div>
           </div>
