@@ -4,14 +4,23 @@ import { prisma } from "./prisma";
 import { revalidatePath } from "next/cache";
 import webpush from "web-push";
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+let vapidReady = false;
+try {
+  const subject = process.env.VAPID_SUBJECT;
+  const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const priv = process.env.VAPID_PRIVATE_KEY;
+  if (subject && pub && priv) {
+    webpush.setVapidDetails(subject, pub, priv);
+    vapidReady = true;
+  } else {
+    console.warn("[Push] VAPID env vars missing — push notifications disabled");
+  }
+} catch (err) {
+  console.error("[Push] VAPID init failed:", err);
+}
 
 async function sendPush(pushSubscription: string | null, title: string, body: string) {
-  if (!pushSubscription) return;
+  if (!pushSubscription || !vapidReady) return;
   try {
     await webpush.sendNotification(
       JSON.parse(pushSubscription),
@@ -220,14 +229,16 @@ export async function getAvailableSlots(dateStr: string) {
   const bookings = await getBookingsForDate(dateStr);
   const interval = 45;
   const slots = [];
-  let current = new Date(`${dateStr}T08:00:00`);
-  const end = new Date(`${dateStr}T20:00:00`);
+  let current = new Date(`${dateStr}T09:30:00`);
+  const end = new Date(`${dateStr}T20:31:00`);
 
   while (current < end) {
     const hours = current.getHours().toString().padStart(2, "0");
     const minutes = current.getMinutes().toString().padStart(2, "0");
     const timeStr = `${hours}:${minutes}`;
-    const isTaken = bookings.some((b: any) => b.timeSlot === timeStr && b.status !== "REJECTED");
+    const isTaken = bookings.some(
+      (b: any) => b.timeSlot === timeStr && b.status !== "REJECTED" && b.status !== "CANCELLED"
+    );
     slots.push({ time: timeStr, available: !isTaken });
     current = new Date(current.getTime() + interval * 60000);
   }
