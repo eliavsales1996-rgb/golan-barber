@@ -226,7 +226,13 @@ export async function removeFromWaitlist(id: string) {
 }
 
 export async function getAvailableSlots(dateStr: string) {
-  const bookings = await getBookingsForDate(dateStr);
+  const [bookings, blockedHoursRows] = await Promise.all([
+    getBookingsForDate(dateStr),
+    prisma.blockedHours.findMany({
+      where: { date: new Date(dateStr + "T00:00:00.000Z") },
+    }),
+  ]);
+
   const interval = 45;
   const slots = [];
   let current = new Date(`${dateStr}T09:30:00`);
@@ -236,12 +242,65 @@ export async function getAvailableSlots(dateStr: string) {
     const hours = current.getHours().toString().padStart(2, "0");
     const minutes = current.getMinutes().toString().padStart(2, "0");
     const timeStr = `${hours}:${minutes}`;
+
     const isTaken = bookings.some(
       (b: any) => b.timeSlot === timeStr && b.status !== "REJECTED" && b.status !== "CANCELLED"
     );
-    slots.push({ time: timeStr, available: !isTaken });
+    const isBlocked = blockedHoursRows.some(
+      (bh) => timeStr >= bh.startTime && timeStr < bh.endTime
+    );
+
+    slots.push({ time: timeStr, available: !isTaken && !isBlocked });
     current = new Date(current.getTime() + interval * 60000);
   }
 
   return slots;
+}
+
+export async function addBlockedHours(
+  dateStr: string,
+  startTime: string,
+  endTime: string,
+  reason?: string
+) {
+  try {
+    await prisma.blockedHours.create({
+      data: {
+        date: new Date(dateStr + "T00:00:00.000Z"),
+        startTime,
+        endTime,
+        reason: reason || null,
+      },
+    });
+    revalidatePath("/admin");
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("[addBlockedHours] error:", error);
+    return { success: false, error: "שגיאה בחסימת השעות" };
+  }
+}
+
+export async function getBlockedHours() {
+  const hours = await prisma.blockedHours.findMany({
+    orderBy: [{ date: "asc" }, { startTime: "asc" }],
+  });
+  return hours.map((h) => ({
+    id: h.id,
+    date: h.date.toISOString().split("T")[0],
+    startTime: h.startTime,
+    endTime: h.endTime,
+    reason: h.reason ?? null,
+  }));
+}
+
+export async function deleteBlockedHours(id: string) {
+  try {
+    await prisma.blockedHours.delete({ where: { id } });
+    revalidatePath("/admin");
+    revalidatePath("/");
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
 }
