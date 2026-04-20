@@ -34,17 +34,28 @@ model DayOff {
   createdAt DateTime @default(now())
 }
 
-model StoreSettings {
+model BlockedHours {
   id        String   @id @default(cuid())
-  message   String
-  isActive  Boolean  @default(false)
-  updatedAt DateTime @updatedAt
+  date      DateTime
+  startTime String
+  endTime   String
+  reason    String?
+  createdAt DateTime @default(now())
+}
+
+model StoreSettings {
+  id                     String   @id @default(cuid())
+  message                String
+  isActive               Boolean  @default(false)
+  barberPushSubscription String?
+  updatedAt              DateTime @updatedAt
 }
 
 model Waitlist {
-  id            String   @id @default(cuid())
-  customerName  String
-  phoneNumber   String
-  requestedDate String
-  createdAt     DateTime @default(now())
+  id               String   @id @default(cuid())
+  customerName     String
+  phoneNumber      String
+  requestedDate    String
+  pushSubscription String?
+  createdAt        DateTime @default(now())
 }
