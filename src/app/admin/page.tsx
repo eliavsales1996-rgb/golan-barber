@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getBookingsForDate, getAvailableSlots, getDaysOff, addDayOff, deleteDayOff, approveBooking, rejectBooking, cancelBooking, getStoreSettings, saveStoreSettings, getWaitlist, removeFromWaitlist } from "@/lib/actions";
+import { getBookingsForDate, getAvailableSlots, getDaysOff, addDayOff, deleteDayOff, approveBooking, rejectBooking, cancelBooking, getStoreSettings, saveStoreSettings, getWaitlist, removeFromWaitlist, addBlockedHours, getBlockedHours, deleteBlockedHours } from "@/lib/actions";
 
 export default function AdminPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
@@ -18,6 +18,12 @@ export default function AdminPage() {
   const [announcementLoading, setAnnouncementLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"bookings" | "waitlist">("bookings");
   const [waitlist, setWaitlist] = useState<any[]>([]);
+  const [blockedHours, setBlockedHours] = useState<{ id: string; date: string; startTime: string; endTime: string; reason: string | null }[]>([]);
+  const [bhDate, setBhDate] = useState(new Date().toISOString().split("T")[0]);
+  const [bhStart, setBhStart] = useState("14:00");
+  const [bhEnd, setBhEnd] = useState("16:00");
+  const [bhReason, setBhReason] = useState("");
+  const [bhLoading, setBhLoading] = useState(false);
 
   useEffect(() => {
     getStoreSettings().then((s) => {
@@ -50,6 +56,10 @@ export default function AdminPage() {
     getWaitlist().then(setWaitlist);
   }, []);
 
+  useEffect(() => {
+    getBlockedHours().then(setBlockedHours);
+  }, []);
+
   async function handleAddDayOff() {
     if (dayOffEnd < dayOffStart) {
       alert("תאריך סיום חייב להיות אחרי תאריך התחלה");
@@ -67,6 +77,19 @@ export default function AdminPage() {
     await deleteDayOff(id);
     const updated = await getDaysOff();
     setDaysOff(updated);
+  }
+
+  async function handleAddBlockedHours() {
+    if (bhEnd <= bhStart) {
+      alert("שעת הסיום חייבת להיות אחרי שעת ההתחלה");
+      return;
+    }
+    setBhLoading(true);
+    const result = await addBlockedHours(bhDate, bhStart, bhEnd, bhReason || undefined);
+    if (!result.success) alert(result.error || "שגיאה בחסימת השעות");
+    const updated = await getBlockedHours();
+    setBlockedHours(updated);
+    setBhLoading(false);
   }
 
   return (
@@ -302,6 +325,83 @@ export default function AdminPage() {
                   <button
                     onClick={() => handleDeleteDayOff(d.id)}
                     className="text-[10px] font-black uppercase tracking-widest text-white/40 border border-white/10 px-4 py-2 rounded-xl hover:border-red-500/40 hover:text-red-400 transition-all"
+                  >
+                    בטל חסימה
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* Blocked Hours Management */}
+        <section className="reveal text-right">
+          <label className="text-[10px] uppercase tracking-[0.2em] font-black text-primary/60 ml-2 mb-4 block underline">חסום שעות ביום מסוים</label>
+
+          <div className="bg-white/[0.03] border border-white/[0.08] rounded-[28px] p-6 mb-4 space-y-4">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-black">בחר יום וטווח שעות</p>
+            <input
+              type="date"
+              value={bhDate}
+              onChange={(e) => setBhDate(e.target.value)}
+              className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl py-4 px-6 font-bold text-white outline-none focus:border-primary/50 text-right"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="text-right">
+                <p className="text-[9px] text-white/20 font-black uppercase tracking-widest mb-2">משעה</p>
+                <input
+                  type="time"
+                  value={bhStart}
+                  onChange={(e) => setBhStart(e.target.value)}
+                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-primary/50 text-right"
+                />
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] text-white/20 font-black uppercase tracking-widest mb-2">עד שעה</p>
+                <input
+                  type="time"
+                  value={bhEnd}
+                  onChange={(e) => setBhEnd(e.target.value)}
+                  className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl py-4 px-4 font-bold text-white outline-none focus:border-primary/50 text-right"
+                />
+              </div>
+            </div>
+            <input
+              type="text"
+              placeholder="סיבה (אופציונלי)"
+              value={bhReason}
+              onChange={(e) => setBhReason(e.target.value)}
+              className="w-full bg-white/[0.03] border border-white/[0.08] rounded-2xl py-4 px-6 font-bold text-white outline-none focus:border-primary/50 text-right placeholder:text-white/20"
+            />
+            <button
+              onClick={handleAddBlockedHours}
+              disabled={bhLoading}
+              className="w-full h-12 rounded-2xl font-bold text-sm bg-orange-500/20 border border-orange-500/30 text-orange-400 hover:bg-orange-500/30 transition-all disabled:opacity-40"
+            >
+              {bhLoading ? "חוסם..." : "חסום שעות אלו"}
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {blockedHours.length === 0 ? (
+              <p className="text-center text-white/20 text-sm py-4">אין שעות חסומות כרגע</p>
+            ) : (
+              blockedHours.map((h) => (
+                <div
+                  key={h.id}
+                  className="p-5 rounded-[20px] bg-orange-500/[0.07] border border-orange-500/20 flex items-center justify-between flex-row-reverse"
+                >
+                  <div className="text-right">
+                    <span className="font-bold text-orange-400 tracking-widest block">{h.date}</span>
+                    <span className="text-sm text-white/60 block">{h.startTime} – {h.endTime}</span>
+                    {h.reason && <span className="text-[11px] text-white/40 mt-0.5 block">{h.reason}</span>}
+                  </div>
+                  <button
+                    onClick={async () => {
+                      await deleteBlockedHours(h.id);
+                      setBlockedHours((prev) => prev.filter((e) => e.id !== h.id));
+                    }}
+                    className="text-[10px] font-black uppercase tracking-widest text-white/40 border border-white/10 px-4 py-2 rounded-xl hover:border-orange-500/40 hover:text-orange-400 transition-all"
                   >
                     בטל חסימה
                   </button>
