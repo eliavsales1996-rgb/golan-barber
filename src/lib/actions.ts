@@ -111,6 +111,17 @@ export async function createBooking(data: {
         pushSubscription: data.pushSubscription ?? null,
       },
     });
+
+    // Notify barber
+    const settings = await prisma.storeSettings.findFirst();
+    if (settings?.barberPushSubscription) {
+      await sendPush(
+        settings.barberPushSubscription,
+        "📅 הזמנה חדשה!",
+        `${data.customerName} הזמין תור ל-${data.date} בשעה ${data.timeSlot}`
+      );
+    }
+
     revalidatePath("/admin");
     return { success: true };
   } catch (error) {
@@ -299,6 +310,25 @@ export async function deleteBlockedHours(id: string) {
     await prisma.blockedHours.delete({ where: { id } });
     revalidatePath("/admin");
     revalidatePath("/");
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
+}
+
+export async function saveBarberPushSubscription(sub: string) {
+  try {
+    const existing = await prisma.storeSettings.findFirst();
+    if (existing) {
+      await prisma.storeSettings.update({
+        where: { id: existing.id },
+        data: { barberPushSubscription: sub },
+      });
+    } else {
+      await prisma.storeSettings.create({
+        data: { message: "", isActive: false, barberPushSubscription: sub },
+      });
+    }
     return { success: true };
   } catch {
     return { success: false };
