@@ -736,15 +736,11 @@ export default function Page() {
       </div>
     </main>
 
-      {/* Instagram floating button — outside main to avoid overflow-hidden clipping on iOS */}
+      {/* Instagram floating button — above BottomNav (h-20=80px) on mobile, bottom-6 on desktop */}
       <button
         onClick={() => setShowInstagram(true)}
-        className="fixed z-50 w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-95"
-        style={{
-          background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)',
-          bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
-          left: '1.5rem',
-        }}
+        className="fixed z-[60] w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-95 bottom-24 md:bottom-6 left-6"
+        style={{ background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)' }}
         aria-label="Instagram"
       >
         <svg viewBox="0 0 24 24" width="26" height="26" fill="white">
