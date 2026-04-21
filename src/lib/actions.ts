@@ -3,6 +3,8 @@
 import { prisma } from "./prisma";
 import { revalidatePath } from "next/cache";
 import webpush from "web-push";
+import { createAdminSession, deleteAdminSession } from "./session";
+import { redirect } from "next/navigation";
 
 let vapidReady = false;
 try {
@@ -391,6 +393,19 @@ export async function getBookingsByPhone(phone: string) {
     timeSlot: b.timeSlot,
     status: b.status,
   }));
+}
+
+export async function adminLogin(username: string, password: string) {
+  if (username === "golan" && password === "golan") {
+    await createAdminSession();
+    return { success: true };
+  }
+  return { success: false, error: "שם משתמש או סיסמה שגויים" };
+}
+
+export async function adminLogout() {
+  await deleteAdminSession();
+  redirect("/login");
 }
 
 export async function cancelBookingByCustomer(bookingId: string, phone: string) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getBookingsForDate, getAvailableSlots, getDaysOff, addDayOff, deleteDayOff, approveBooking, rejectBooking, cancelBooking, getStoreSettings, saveStoreSettings, getWaitlist, removeFromWaitlist, addBlockedHours, getBlockedHours, deleteBlockedHours, saveBarberPushSubscription } from "@/lib/actions";
+import { getBookingsForDate, getAvailableSlots, getDaysOff, addDayOff, deleteDayOff, approveBooking, rejectBooking, cancelBooking, getStoreSettings, saveStoreSettings, getWaitlist, removeFromWaitlist, addBlockedHours, getBlockedHours, deleteBlockedHours, saveBarberPushSubscription, adminLogout } from "@/lib/actions";
 
 export default function AdminPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
@@ -100,7 +100,12 @@ export default function AdminPage() {
           <h1 className="text-3xl font-bold font-serif gold-gradient-text tracking-tighter">שלום, גולן</h1>
           <p className="text-[10px] text-white/30 uppercase tracking-[0.3em]">Management Console (Live DB)</p>
         </div>
-        <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xl">📊</div>
+        <button
+          onClick={() => adminLogout()}
+          className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white/[0.03] border border-white/[0.08] text-white/30 hover:border-red-500/30 hover:text-red-400/60 transition-all"
+        >
+          התנתק
+        </button>
       </div>
 
       {/* Tab Bar */}

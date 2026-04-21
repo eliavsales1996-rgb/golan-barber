@@ -126,6 +126,7 @@ export default function Page() {
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [waitlistDone, setWaitlistDone] = useState(false);
   const [waitlistPushSub, setWaitlistPushSub] = useState<string | undefined>(undefined);
+  const [showInstagram, setShowInstagram] = useState(false);
   const [showMyBookings, setShowMyBookings] = useState(false);
   const [myBookingsName, setMyBookingsName] = useState("");
   const [myBookingsPhone, setMyBookingsPhone] = useState("");
@@ -721,11 +722,75 @@ export default function Page() {
         </div>
 
         {/* Bottom signature */}
-        <div className="text-center mt-8 mb-4 space-y-2">
+        <div className="text-center mt-8 mb-4 space-y-3">
           <span className="text-white/10 text-[10px] tracking-[0.3em] uppercase">Golan Barber · Premium Grooming</span>
           <p className="text-white/15 text-[10px] tracking-wide">נבנה ועוצב ע&quot;י בוטיגו פתרונות טכנולוגיים לעסקים</p>
+          <a
+            href="/login"
+            className="inline-block text-[9px] text-white/10 hover:text-white/25 transition-colors tracking-widest uppercase"
+          >
+            כניסת מנהל
+          </a>
         </div>
       </div>
+      {/* Instagram floating button */}
+      <button
+        onClick={() => setShowInstagram(true)}
+        className="fixed bottom-6 left-6 z-50 w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-95"
+        style={{background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)'}}
+        aria-label="Instagram"
+      >
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="white">
+          <rect x="2" y="2" width="20" height="20" rx="5" ry="5" fill="none" stroke="white" strokeWidth="2"/>
+          <circle cx="12" cy="12" r="4.5" fill="none" stroke="white" strokeWidth="2"/>
+          <circle cx="17.5" cy="6.5" r="1.2" fill="white"/>
+        </svg>
+      </button>
+
+      {/* Instagram popup */}
+      {showInstagram && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center pb-8 px-4"
+          onClick={() => setShowInstagram(false)}
+        >
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div
+            className="relative w-full max-w-sm rounded-[28px] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Instagram gradient header */}
+            <div className="px-6 py-6 text-center" style={{background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)'}}>
+              <svg viewBox="0 0 24 24" width="40" height="40" className="mx-auto mb-3" fill="white">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5" fill="none" stroke="white" strokeWidth="2"/>
+                <circle cx="12" cy="12" r="4.5" fill="none" stroke="white" strokeWidth="2"/>
+                <circle cx="17.5" cy="6.5" r="1.2" fill="white"/>
+              </svg>
+              <p className="text-white font-bold text-lg">@golan_carmeli_barber</p>
+              <p className="text-white/80 text-sm mt-1">עקבו אחרינו באינסטגרם</p>
+            </div>
+
+            {/* Body */}
+            <div className="bg-[#0d1f16] px-6 py-5 space-y-3">
+              <p className="text-white/60 text-sm text-center">תמונות, עדכונים ועבודות של גולן ברבר</p>
+              <a
+                href="https://www.instagram.com/golan_carmeli_barber/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full h-12 rounded-2xl font-bold text-sm text-white text-center leading-[48px] transition-opacity hover:opacity-90"
+                style={{background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)'}}
+              >
+                עבור לעמוד האינסטגרם
+              </a>
+              <button
+                onClick={() => setShowInstagram(false)}
+                className="w-full h-11 rounded-2xl text-sm text-white/40 hover:text-white/60 transition-colors"
+              >
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
