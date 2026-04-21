@@ -255,6 +255,7 @@ export default function Page() {
   }
 
   return (
+    <>
     <main className="min-h-screen bg-[#030d08] text-white overflow-hidden pb-40">
 
       {/* Background atmosphere layers */}
@@ -733,11 +734,17 @@ export default function Page() {
           </a>
         </div>
       </div>
-      {/* Instagram floating button */}
+    </main>
+
+      {/* Instagram floating button — outside main to avoid overflow-hidden clipping on iOS */}
       <button
         onClick={() => setShowInstagram(true)}
-        className="fixed bottom-6 left-6 z-50 w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-95"
-        style={{background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)'}}
+        className="fixed z-50 w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-transform hover:scale-110 active:scale-95"
+        style={{
+          background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)',
+          bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
+          left: '1.5rem',
+        }}
         aria-label="Instagram"
       >
         <svg viewBox="0 0 24 24" width="26" height="26" fill="white">
@@ -747,10 +754,11 @@ export default function Page() {
         </svg>
       </button>
 
-      {/* Instagram popup */}
+      {/* Instagram popup — outside main */}
       {showInstagram && (
         <div
-          className="fixed inset-0 z-[100] flex items-end justify-center pb-8 px-4"
+          className="fixed inset-0 z-[100] flex items-end justify-center px-4"
+          style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom, 0px))' }}
           onClick={() => setShowInstagram(false)}
         >
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
@@ -758,7 +766,6 @@ export default function Page() {
             className="relative w-full max-w-sm rounded-[28px] overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Instagram gradient header */}
             <div className="px-6 py-6 text-center" style={{background: 'linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045)'}}>
               <svg viewBox="0 0 24 24" width="40" height="40" className="mx-auto mb-3" fill="white">
                 <rect x="2" y="2" width="20" height="20" rx="5" ry="5" fill="none" stroke="white" strokeWidth="2"/>
@@ -768,8 +775,6 @@ export default function Page() {
               <p className="text-white font-bold text-lg">@golan_carmeli_barber</p>
               <p className="text-white/80 text-sm mt-1">עקבו אחרינו באינסטגרם</p>
             </div>
-
-            {/* Body */}
             <div className="bg-[#0d1f16] px-6 py-5 space-y-3">
               <p className="text-white/60 text-sm text-center">תמונות, עדכונים ועבודות של גולן ברבר</p>
               <a
@@ -791,6 +796,6 @@ export default function Page() {
           </div>
         </div>
       )}
-    </main>
+    </>
   );
 }
